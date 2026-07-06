@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Attendance Recorded · NSS Attendance{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="glass-card p-4 p-md-5 mt-4 text-center">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+            <h3 class="mt-3">Attendance Recorded!</h3>
+            <p class="text-muted mb-4">Your attendance for <strong>{{ event['event_name'] }}</strong> has been saved successfully.</p>
+
+            <div class="text-start bg-body-tertiary rounded p-3 mb-3">
+                <div class="mb-2"><i class="bi bi-geo-alt-fill text-success"></i> <strong>Location:</strong> {{ address }}</div>
+                {% if maps_link %}
+                <div><i class="bi bi-map-fill text-success"></i>
+                    <a href="{{ maps_link }}" target="_blank" rel="noopener">View on Google Maps</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <a href="{{ url_for('student.attend_manual') }}" class="btn btn-outline-success">
+                <i class="bi bi-arrow-left"></i> Back to Attendance Form
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

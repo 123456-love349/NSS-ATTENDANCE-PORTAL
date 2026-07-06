@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Mark Attendance · NSS Attendance{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="glass-card p-4 p-md-5 mt-2">
+            <div class="text-center mb-4">
+                <i class="bi bi-clipboard2-check display-4 text-success"></i>
+                <h3 class="mt-2 mb-0">NSS Attendance</h3>
+                {% if locked_event %}
+                    <span class="badge bg-success mt-2"><i class="bi bi-qr-code"></i> QR Attendance &middot; {{ locked_event['event_name'] }}</span>
+                {% else %}
+                    <small class="text-muted">Select your event and fill in your details</small>
+                {% endif %}
+            </div>
+
+            <form method="post" action="{{ url_for('student.attend_submit') }}" id="attendanceForm" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="latitude" id="latitude">
+                <input type="hidden" name="longitude" id="longitude">
+                <input type="hidden" name="gps_accuracy" id="gps_accuracy">
+                <input type="hidden" name="location_timestamp" id="location_timestamp">
+                <input type="hidden" name="location_denied" id="location_denied" value="0">
+                <input type="hidden" name="attendance_mode" value="{{ 'qr' if locked_event else 'manual' }}">
+                {% if locked_event %}
+                    <input type="hidden" name="qr_token" value="{{ locked_event['qr_token'] }}">
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Event <span class="text-danger">*</span></label>
+                        {% if locked_event %}
+                            <input type="text" class="form-control" value="{{ locked_event['event_name'] }}" disabled>
+                            <input type="hidden" name="event_id" value="{{ locked_event['id'] }}">
+                        {% else %}
+                            <select class="form-select" name="event_id" required>
+                                <option value="" selected disabled>-- Select an active event --</option>
+                                {% for ev in events %}
+                                <option value="{{ ev['id'] }}"
+                                    {% if form_data and form_data.get('event_id')|string == ev['id']|string %}selected{% endif %}>
+                                    {{ ev['event_name'] }} ({{ ev['event_date'] }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="student_name" required
+                               value="{{ form_data.get('student_name', '') if form_data }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" name="phone" required
+                               value="{{ form_data.get('phone', '') if form_data }}">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Branch</label>
+                        <input type="text" class="form-control" name="branch"
+                               value="{{ form_data.get('branch', '') if form_data }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Section</label>
+                        <input type="text" class="form-control" name="section"
+                               value="{{ form_data.get('section', '') if form_data }}">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_nss_volunteer" id="isVolunteer"
+                                   {% if form_data and form_data.get('is_nss_volunteer') == 'on' %}checked{% endif %}>
+                            <label class="form-check-label" for="isVolunteer">I am an NSS Volunteer</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">CRN</label>
+                        <input type="text" class="form-control" name="crn"
+                               value="{{ form_data.get('crn', '') if form_data }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">URN</label>
+                        <input type="text" class="form-control" name="urn"
+                               value="{{ form_data.get('urn', '') if form_data }}">
+                    </div>
+                    <div class="col-12"><small class="text-muted">Provide at least one of CRN / URN.</small></div>
+                </div>
+
+                <div id="locationStatusBox" class="alert alert-warning status-pending mt-4 mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-geo-alt-fill fs-4"></i>
+                    <div>
+                        <div id="locationStatusText"><i class="bi bi-arrow-repeat spin"></i> Requesting your location…</div>
+                        <small class="text-muted" id="locationDetail"></small>
+                    </div>
+                </div>
+
+                <div id="formFeedback" class="mt-3"></div>
+                <button type="submit" class="btn btn-success btn-lg w-100" id="submitBtn" disabled>
+                    <i class="bi bi-check2-circle"></i> Submit Attendance
+                </button>
+                <p class="text-center text-muted small mt-2 mb-0">
+                    Location access is required — attendance cannot be submitted without it.
+                </p>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    const statusBox = document.getElementById('locationStatusBox');
+    const statusText = document.getElementById('locationStatusText');
+    const detail = document.getElementById('locationDetail');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function onSuccess(loc) {
+        document.getElementById('latitude').value = loc.latitude;
+        document.getElementById('longitude').value = loc.longitude;
+        document.getElementById('gps_accuracy').value = loc.accuracy;
+        document.getElementById('location_timestamp').value = loc.timestamp || new Date().toISOString();
+        statusBox.classList.remove('status-pending', 'status-error', 'alert-warning', 'alert-danger');
+        statusBox.classList.add('status-ok', 'alert-success');
+        statusText.innerHTML = '<i class="bi bi-check-circle-fill"></i> Location captured successfully.';
+        detail.textContent = 'Lat: ' + loc.latitude.toFixed(5) + ', Lng: ' + loc.longitude.toFixed(5) +
+            ' (±' + Math.round(loc.accuracy) + 'm accuracy)';
+        submitBtn.disabled = false;
+    }
+
+    function onError(message) {
+        document.getElementById('location_denied').value = '1';
+        statusBox.classList.remove('status-pending', 'status-ok', 'alert-warning', 'alert-success');
+        statusBox.classList.add('status-error', 'alert-danger');
+        statusText.innerHTML = '<i class="bi bi-x-circle-fill"></i> ' + message;
+        detail.innerHTML = '<button type="button" class="btn btn-sm btn-outline-danger mt-1" id="retryLocationBtn">Retry</button>';
+        submitBtn.disabled = true;
+        const retryBtn = document.getElementById('retryLocationBtn');
+        if (retryBtn) retryBtn.addEventListener('click', requestLocation);
+    }
+
+    function requestLocation() {
+        statusBox.classList.remove('status-ok', 'status-error', 'alert-success', 'alert-danger');
+        statusBox.classList.add('status-pending', 'alert-warning');
+        statusText.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Requesting your location…';
+        window.NSS.captureLocation(onSuccess, onError);
+    }
+
+    document.addEventListener('DOMContentLoaded', requestLocation);
+})();
+</script>
+{% endblock %}

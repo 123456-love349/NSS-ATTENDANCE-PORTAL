@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Live QR Code · {{ event['event_name'] }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center py-4 fade-in">
+    <div class="col-md-6 col-lg-5 text-center">
+        <div class="glass-card p-5">
+            <h3 class="fw-bold mb-1 text-success-emphasis">{{ event['event_name'] }}</h3>
+            <p class="text-muted small mb-4">Project this screen. Students scan the QR code to mark attendance.</p>
+            
+            <!-- QR Frame -->
+            <div class="bg-white p-4 rounded-4 shadow-sm border border-light d-inline-block mb-4" style="position: relative;">
+                <img id="qrImage" src="{{ url_for('static', filename='qrcodes/' + event['qr_image_path']) if event['qr_image_path'] else '' }}" 
+                     alt="Event QR Code" style="width: 250px; height: 250px; object-fit: contain;" class="img-fluid">
+                
+                <div id="loaderOverlay" class="position-absolute top-50 start-50 translate-middle d-none">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Countdown Timer Progress -->
+            <div class="px-3 mb-4">
+                <div class="d-flex justify-content-between text-muted small mb-1">
+                    <span><i class="bi bi-arrow-repeat spin"></i> Auto-refreshing security key</span>
+                    <span class="fw-bold" id="timerText">Checking...</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div id="timerProgress" class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                </div>
+            </div>
+            
+            <div class="alert alert-secondary-subtle border border-light py-2 px-3 small d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-shield-lock-fill text-success"></i>
+                <span class="text-muted">Dynamic Token:</span>
+                <code class="fw-bold" id="tokenText">{{ event['qr_token'][:10] }}...</code>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('admin.events_list') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Events
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    const eventId = {{ event['id'] }};
+    const qrImage = document.getElementById('qrImage');
+    const timerText = document.getElementById('timerText');
+    const timerProgress = document.getElementById('timerProgress');
+    const tokenText = document.getElementById('tokenText');
+    const loader = document.getElementById('loaderOverlay');
+    
+    let secondsLeft = 0;
+    let initialDuration = 30; // standard 30-second interval
+    let countdownInterval = null;
+
+    function fetchNewToken() {
+        loader.classList.remove('d-none');
+        qrImage.style.opacity = '0.3';
+        
+        fetch(`/admin/events/${eventId}/live-qr/token`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    qrImage.src = data.qr_image_url;
+                    tokenText.textContent = data.qr_token.substring(0, 10) + '...';
+                    secondsLeft = data.seconds_left > 0 ? data.seconds_left : 30;
+                    initialDuration = secondsLeft;
+                    
+                    // Reset visual states
+                    loader.classList.add('d-none');
+                    qrImage.style.opacity = '1';
+                    
+                    startCountdown();
+                } else {
+                    timerText.textContent = "Error loading key";
+                }
+            })
+            .catch(err => {
+                console.error("Token fetch failed", err);
+                timerText.textContent = "Offline. Retrying...";
+                setTimeout(fetchNewToken, 5000);
+            });
+    }
+
+    function startCountdown() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        
+        countdownInterval = setInterval(() => {
+            secondsLeft--;
+            
+            if (secondsLeft <= 0) {
+                clearInterval(countdownInterval);
+                timerText.textContent = "Refreshing...";
+                timerProgress.style.width = '0%';
+                fetchNewToken();
+            } else {
+                timerText.textContent = `${secondsLeft}s left`;
+                const percentage = (secondsLeft / initialDuration) * 100;
+                timerProgress.style.width = `${percentage}%`;
+                
+                // Color warn when low
+                if (secondsLeft < 5) {
+                    timerProgress.classList.remove('bg-success');
+                    timerProgress.classList.add('bg-danger');
+                } else {
+                    timerProgress.classList.remove('bg-danger');
+                    timerProgress.classList.add('bg-success');
+                }
+            }
+        }, 1000);
+    }
+
+    // Initial load
+    fetchNewToken();
+})();
+</script>
+{% endblock %}

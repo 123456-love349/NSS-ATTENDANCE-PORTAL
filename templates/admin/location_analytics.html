@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Location Analytics · NSS Attendance{% endblock %}
+{% block extra_head %}
+<!-- Leaflet Heatmap Plugin -->
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<style>
+    .legend {
+        background: var(--nss-card-bg);
+        backdrop-filter: blur(8px);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--nss-border);
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+    .legend i {
+        width: 12px;
+        height: 12px;
+        display: inline-block;
+        margin-right: 6px;
+        border-radius: 50%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2 fade-in">
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <h3 class="fw-bold mb-1 text-success-emphasis"><i class="bi bi-geo-alt-fill"></i> Location Analytics Map</h3>
+            <p class="text-muted">Real-time geospatial tracking of student attendance check-ins, spoofing checks, and density heatmaps.</p>
+        </div>
+    </div>
+
+    <!-- Filters Pane -->
+    <div class="glass-card p-3 mb-4">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Filter by Event</label>
+                <select class="form-select form-select-sm" name="event_id">
+                    <option value="">All Events</option>
+                    {% for ev in events %}
+                    <option value="{{ ev['id'] }}" {% if event_id == ev['id'] %}selected{% endif %}>{{ ev['event_name'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Filter by Date</label>
+                <input class="form-control form-control-sm" type="date" name="date" value="{{ date_str }}">
+            </div>
+            <div class="col-md-5 d-flex gap-2 justify-content-md-end mt-2 mt-md-0">
+                <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-filter"></i> Apply Filters</button>
+                <a href="{{ url_for('admin.location_analytics') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+                <button type="button" id="toggleHeatmap" class="btn btn-outline-success btn-sm"><i class="bi bi-fire"></i> Toggle Heatmap</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Map and List Pane -->
+    <div class="row g-4">
+        <!-- Interactive Leaflet Map -->
+        <div class="col-lg-8">
+            <div class="glass-card p-2">
+                <div id="map" style="height: 520px; width: 100%; border-radius: 1rem;"></div>
+            </div>
+        </div>
+
+        <!-- Sidebar Check-ins List -->
+        <div class="col-lg-4">
+            <div class="glass-card p-4 h-100 d-flex flex-column" style="max-height: 535px;">
+                <h5 class="fw-bold mb-3"><i class="bi bi-list-task"></i> Check-in Coordinates</h5>
+                <div class="flex-grow-1 overflow-y-auto d-flex flex-column gap-2 pe-1" id="recordsList">
+                    {% for r in records %}
+                    <div class="p-3 rounded-3 border border-light bg-light-subtle shadow-sm record-item" 
+                         style="cursor: pointer;"
+                         data-lat="{{ r['lat'] }}" data-lng="{{ r['lng'] }}" data-name="{{ r['student_name'] }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="fw-bold text-success-emphasis small">{{ r['student_name'] }}</span>
+                            {% if r['status'] == 'suspicious' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0 px-1" style="font-size: 0.7rem;">Suspicious</span>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-1" style="font-size: 0.7rem;">Verified</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted small mt-1 text-truncate" style="font-size: 0.8rem;">
+                            <i class="bi bi-geo-alt"></i> {{ r['address'] }}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2" style="font-size: 0.75rem;">
+                            <span class="text-muted">Event: {{ r['event_name'] }}</span>
+                            <span class="text-muted font-monospace">Lat: {{ r['lat']|round(4) }}, Lng: {{ r['lng']|round(4) }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-geo-fill fs-2 mb-2 d-block"></i>
+                        No check-in logs with coordinates.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Leaflet JS Library -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const records = {{ records|tojson }};
+    
+    // Default coordinates: centers on Ludhiana / XYZ University if records are empty
+    let centerLat = 30.9010;
+    let centerLng = 75.8573;
+    let zoomLevel = 12;
+    
+    if (records.length > 0) {
+        // Average coordinates to center map
+        let sumLat = 0, sumLng = 0;
+        records.forEach(r => {
+            sumLat += r.lat;
+            sumLng += r.lng;
+        });
+        centerLat = sumLat / records.length;
+        centerLng = sumLng / records.length;
+        zoomLevel = 14;
+    }
+    
+    // Initialize Leaflet Map
+    const map = L.map('map').setView([centerLat, centerLng], zoomLevel);
+    
+    // Load OpenStreetMap Tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Define marker icons
+    const greenIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    const redIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+    
+    // 1. Add markers
+    const markersGroup = L.layerGroup().addTo(map);
+    const markersMap = {}; // mapping student to marker
+    
+    records.forEach(r => {
+        const icon = (r.status === 'suspicious' || r.risk >= 50) ? redIcon : greenIcon;
+        const marker = L.marker([r.lat, r.lng], { icon: icon });
+        
+        const popupContent = `
+            <div style="font-family: 'Outfit', sans-serif; font-size: 0.85rem;">
+                <h6 class="fw-bold mb-1 text-success">${r.student_name}</h6>
+                <div class="mb-1 text-muted"><strong>CRN/URN:</strong> ${r.crn_urn}</div>
+                <div class="mb-1 text-muted"><strong>Event:</strong> ${r.event_name}</div>
+                <div class="mb-1 text-muted"><strong>Address:</strong><br>${r.address}</div>
+                <div class="mb-1 text-muted"><strong>Risk Score:</strong> <span class="badge ${r.risk >= 50 ? 'bg-danger':'bg-success'}">${r.risk}</span></div>
+                <div class="mt-2 text-center">
+                    <a href="https://www.google.com/maps?q=${r.lat},${r.lng}" target="_blank" class="btn btn-xs btn-primary text-white py-0 px-2" style="font-size:0.75rem;">Open Google Maps</a>
+                </div>
+            </div>
+        `;
+        
+        marker.bindPopup(popupContent);
+        markersGroup.addLayer(marker);
+        markersMap[r.id] = marker;
+    });
+    
+    // 2. Add Heatmap Layer
+    const heatPoints = records.map(r => [r.lat, r.lng, 0.5]);
+    const heatLayer = L.heatLayer(heatPoints, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17,
+        gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' }
+    });
+    
+    let showingHeatmap = false;
+    const toggleBtn = document.getElementById('toggleHeatmap');
+    
+    toggleBtn.addEventListener('click', function() {
+        showingHeatmap = !showingHeatmap;
+        if (showingHeatmap) {
+            map.removeLayer(markersGroup);
+            heatLayer.addTo(map);
+            toggleBtn.innerHTML = '<i class="bi bi-geo-alt"></i> Toggle Markers';
+        } else {
+            map.removeLayer(heatLayer);
+            markersGroup.addTo(map);
+            toggleBtn.innerHTML = '<i class="bi bi-fire"></i> Toggle Heatmap';
+        }
+    });
+    
+    // 3. Sidebar clicking logic
+    document.querySelectorAll('.record-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const lat = parseFloat(this.getAttribute('data-lat'));
+            const lng = parseFloat(this.getAttribute('data-lng'));
+            
+            // Pan map to clicked student
+            map.setView([lat, lng], 16, { animate: true, duration: 1.5 });
+            
+            // Find corresponding marker and trigger popup
+            records.forEach(r => {
+                if (r.student_name === this.getAttribute('data-name') && r.lat === lat && r.lng === lng) {
+                    const marker = markersMap[r.id];
+                    if (marker && !showingHeatmap) {
+                        marker.openPopup();
+                    }
+                }
+            });
+        });
+    });
+
+    // Add Legend Control
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML += '<h6 class="fw-bold mb-1" style="font-size:0.8rem;">Status</h6>';
+        div.innerHTML += '<div><i style="background: #198754;"></i> Secure Verified</div>';
+        div.innerHTML += '<div><i style="background: #dc3545;"></i> Suspicious Proxy Risk</div>';
+        return div;
+    };
+    legend.addTo(map);
+});
+</script>
+{% endblock %}

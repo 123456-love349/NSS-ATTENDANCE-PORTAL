@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}OCR Document Center · NSS Attendance{% endblock %}
+{% block content %}
+<div class="container-fluid py-2 fade-in">
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <h3 class="fw-bold mb-1 text-success-emphasis"><i class="bi bi-file-earmark-binary"></i> OCR Document Center</h3>
+            <p class="text-muted">Upload scanned handwritten sheets, digital PDFs, or Excel attendance registers to automatically parse and import them.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Document Uploader -->
+        <div class="col-lg-5">
+            <div class="glass-card p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-cloud-arrow-up text-success"></i> Upload Attendance Document</h5>
+                <form action="{{ url_for('admin.ocr_upload') }}" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Target Event <span class="text-danger">*</span></label>
+                        <select class="form-select" name="event_id" required>
+                            <option value="" selected disabled>-- Select Event to Log --</option>
+                            {% for ev in events %}
+                            <option value="{{ ev['id'] }}">{{ ev['event_name'] }} ({{ ev['event_date'] }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Choose the active event this attendance sheet belongs to.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold">Attendance File <span class="text-danger">*</span></label>
+                        <div class="border border-dashed rounded-3 p-4 text-center bg-light-subtle" style="border-style: dashed !important; border-width: 2px !important; border-color: var(--nss-border) !important;">
+                            <i class="bi bi-file-earmark-medical display-4 text-muted mb-2 d-block"></i>
+                            <span class="small text-muted d-block mb-3">Accepts PNG, JPG, PDF, Excel (XLSX), and CSV</span>
+                            <input class="form-control form-control-sm" type="file" name="attendance_file" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-cpu"></i> Parse Document with OCR</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Upload Jobs -->
+        <div class="col-lg-7">
+            <div class="glass-card p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-clock-history"></i> OCR Extraction Jobs</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="table-light">
+                                <th>Original File</th>
+                                <th>Format</th>
+                                <th>Detected</th>
+                                <th>Status</th>
+                                <th>Uploaded At</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in uploads %}
+                            <tr>
+                                <td class="fw-semibold text-truncate" style="max-width: 150px;" title="{{ job['original_filename'] }}">
+                                    {{ job['original_filename'] }}
+                                </td>
+                                <td><span class="badge bg-secondary">{{ job['file_type']|upper }}</span></td>
+                                <td>
+                                    {{ job['total_rows_detected'] }} rows 
+                                    <small class="text-muted">({{ job['total_duplicates'] }} dup)</small>
+                                </td>
+                                <td>
+                                    {% if job['status'] == 'completed' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Completed</span>
+                                    {% elif job['status'] == 'processing' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="bi bi-arrow-repeat spin"></i> Processing</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" title="{{ job['error_message'] }}">Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-muted">{{ job['created_at'] }}</td>
+                                <td>
+                                    <a href="{{ url_for('admin.ocr_details', upload_id=job['id']) }}" class="btn btn-xs btn-outline-success py-1 px-2 small" style="font-size: 0.75rem;">
+                                        Review
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">No OCR processing jobs recorded.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

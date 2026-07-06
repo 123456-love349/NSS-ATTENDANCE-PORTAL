@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}OCR Job Review · #{{ upload['id'] }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-2 fade-in">
+    <!-- Breadcrumbs / Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+        <div>
+            <div class="small text-muted mb-1">
+                <a href="{{ url_for('admin.ocr_dashboard') }}" class="text-success-emphasis text-decoration-none">&larr; Back to OCR Center</a>
+            </div>
+            <h3 class="fw-bold mb-0 text-success-emphasis">
+                OCR Job Review: <span class="text-muted" style="font-weight: 300;">{{ upload['original_filename'] }}</span>
+            </h3>
+            <p class="text-muted mb-0">Review parsed details, match roster profiles, and perform batch imports.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.ocr_export_excel', upload_id=upload['id']) }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-file-earmark-excel"></i> Export Report
+            </a>
+            {% if upload['status'] == 'completed' %}
+            <form action="{{ url_for('admin.ocr_import', upload_id=upload['id']) }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="bi bi-cloud-arrow-down-fill"></i> Import Valid Records
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Job Stats Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="glass-card p-3 text-center">
+                <h6 class="text-muted small text-uppercase fw-semibold mb-1">Total Parsed</h6>
+                <h3 class="fw-bold text-success-emphasis mb-0">{{ upload['total_rows_detected'] }}</h3>
+                <small class="text-muted">Extracted rows</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card p-3 text-center">
+                <h6 class="text-muted small text-uppercase fw-semibold mb-1">Database Duplicates</h6>
+                <h3 class="fw-bold text-danger mb-0">{{ upload['total_duplicates'] }}</h3>
+                <small class="text-muted">Already marked</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card p-3 text-center">
+                {% set missing_count = namespace(c=0) %}
+                {% for r in extracted_rows %}
+                    {% if not r['matched_student_id'] %}
+                        {% set missing_count.c = missing_count.c + 1 %}
+                    {% endif %}
+                {% endfor %}
+                <h6 class="text-muted small text-uppercase fw-semibold mb-1">Missing in Roster</h6>
+                <h3 class="fw-bold text-warning mb-0">{{ missing_count.c }}</h3>
+                <small class="text-muted">Unregistered students</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card p-3 text-center">
+                {% set valid_count = upload['total_rows_detected'] - upload['total_duplicates'] - missing_count.c %}
+                <h6 class="text-muted small text-uppercase fw-semibold mb-1">Ready to Import</h6>
+                <h3 class="fw-bold text-success mb-0">{{ max(valid_count, 0) }}</h3>
+                <small class="text-muted">Verified profiles</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="glass-card p-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-file-earmark-spreadsheet text-success"></i> Validation Matrix</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="table-light">
+                        <th>#</th>
+                        <th>Extracted Name</th>
+                        <th>CRN</th>
+                        <th>URN</th>
+                        <th>Phone</th>
+                        <th>Roster Match</th>
+                        <th>DB Duplicate?</th>
+                        <th>Actionable Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in extracted_rows %}
+                    {% set is_err = not r['matched_student_id'] or r['is_duplicate_in_db'] == 1 %}
+                    <tr class="{{ 'table-danger-subtle' if r['is_duplicate_in_db'] == 1 else ('table-warning-subtle' if not r['matched_student_id'] else '') }}">
+                        <td class="text-muted">{{ loop.index }}</td>
+                        <td class="fw-semibold">
+                            {{ r['extracted_name'] or '-' }}
+                            {% if r['roster_name'] and r['roster_name'] != r['extracted_name'] %}
+                            <div class="text-muted" style="font-size: 0.75rem; font-weight: 300;">Roster: {{ r['roster_name'] }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ r['extracted_crn'] or '-' }}</td>
+                        <td>{{ r['extracted_urn'] or '-' }}</td>
+                        <td>{{ r['extracted_phone'] or '-' }}</td>
+                        <td>
+                            {% if r['matched_student_id'] %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="bi bi-check-circle"></i> Matched
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                    <i class="bi bi-exclamation-triangle"></i> Unregistered
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r['is_duplicate_in_db'] == 1 %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Yes</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r['is_duplicate_in_db'] == 1 %}
+                                <span class="text-danger small fw-semibold">Already marked attendance</span>
+                            {% elif not r['matched_student_id'] %}
+                                <span class="text-warning small fw-semibold">Not found in master student roster</span>
+                            {% else %}
+                                <span class="text-success small fw-semibold"><i class="bi bi-check2-all"></i> Ready for import</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No parsed records to display.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Events · NSS Attendance{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-calendar-event"></i> Events</h3>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createEventModal">
+        <i class="bi bi-plus-circle"></i> New Event
+    </button>
+</div>
+
+<div class="glass-card p-3">
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Event</th><th>Date</th><th>Status</th><th>QR</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in events %}
+                <tr>
+                    <td>
+                        <strong>{{ ev['event_name'] }}</strong><br>
+                        <small class="text-muted">{{ ev['venue_address'] or 'No venue set' }}</small>
+                    </td>
+                    <td>{{ ev['event_date'] }}</td>
+                    <td>
+                        {% if ev['is_active'] %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ev['qr_image_path'] %}
+                            <a href="{{ url_for('static', filename='qrcodes/' ~ ev['qr_image_path']) }}" target="_blank">
+                                <img src="{{ url_for('static', filename='qrcodes/' ~ ev['qr_image_path']) }}" width="48" alt="QR">
+                            </a>
+                        {% else %}
+                            <span class="text-muted small">Not generated</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-1">
+                            <form method="post" action="{{ url_for('admin.events_generate_qr', event_id=ev['id']) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="validity_minutes" value="15">
+                                <button class="btn btn-sm btn-outline-primary" title="Generate/Refresh QR (15 min validity)">
+                                    <i class="bi bi-qr-code"></i>
+                                </button>
+                            </form>
+                            {% if ev['is_active'] %}
+                            <form method="post" action="{{ url_for('admin.events_deactivate', event_id=ev['id']) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-warning" title="Deactivate"><i class="bi bi-pause-fill"></i></button>
+                            </form>
+                            {% else %}
+                            <form method="post" action="{{ url_for('admin.events_activate', event_id=ev['id']) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-success" title="Activate"><i class="bi bi-play-fill"></i></button>
+                            </form>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editEventModal{{ ev['id'] }}" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="post" action="{{ url_for('admin.events_delete', event_id=ev['id']) }}"
+                                  onsubmit="return confirm('Delete this event permanently?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+
+                <div class="modal fade" id="editEventModal{{ ev['id'] }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <form method="post" action="{{ url_for('admin.events_update', event_id=ev['id']) }}" class="modal-content">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Event</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-2">
+                                    <label class="form-label">Event Name</label>
+                                    <input class="form-control" name="event_name" value="{{ ev['event_name'] }}" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Description</label>
+                                    <textarea class="form-control" name="description">{{ ev['description'] or '' }}</textarea>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Date</label>
+                                    <input type="date" class="form-control" name="event_date" value="{{ ev['event_date'] }}" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Venue Address</label>
+                                    <input class="form-control" name="venue_address" value="{{ ev['venue_address'] or '' }}">
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <label class="form-label">Venue Latitude</label>
+                                        <input type="number" step="any" class="form-control" name="venue_latitude" value="{{ ev['venue_latitude'] or '' }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">Venue Longitude</label>
+                                        <input type="number" step="any" class="form-control" name="venue_longitude" value="{{ ev['venue_longitude'] or '' }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-success">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No events created yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="createEventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" action="{{ url_for('admin.events_create') }}" class="modal-content">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label">Event Name</label>
+                    <input class="form-control" name="event_name" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="description"></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" name="event_date" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Venue Address</label>
+                    <input class="form-control" name="venue_address">
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <label class="form-label">Venue Latitude</label>
+                        <input type="number" step="any" class="form-control" name="venue_latitude">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Venue Longitude</label>
+                        <input type="number" step="any" class="form-control" name="venue_longitude">
+                    </div>
+                </div>
+                <div class="form-text mt-1">Setting venue coordinates enables automatic suspicious-location detection.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success">Create Event</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

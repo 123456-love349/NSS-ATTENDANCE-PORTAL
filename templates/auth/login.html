@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Admin Login · NSS Attendance{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="glass-card p-4 mt-4">
+            <div class="text-center mb-3">
+                <i class="bi bi-shield-lock display-5 text-success"></i>
+                <h4 class="mt-2 mb-0">Admin Login</h4>
+            </div>
+            <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" name="username" required autofocus>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="bi bi-box-arrow-in-right"></i> Login
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

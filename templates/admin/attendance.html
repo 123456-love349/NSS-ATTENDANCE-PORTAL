@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Attendance · NSS Attendance{% endblock %}
+{% block content %}
+<h3 class="mb-3"><i class="bi bi-table"></i> Attendance Records ({{ total }})</h3>
+
+<div class="glass-card p-3 mb-3">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label small">Search (name / CRN / URN / phone)</label>
+            <input class="form-control" type="text" name="search" value="{{ search }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Event</label>
+            <select class="form-select" name="event_id">
+                <option value="">All Events</option>
+                {% for ev in events %}
+                <option value="{{ ev['id'] }}" {% if event_id == ev['id'] %}selected{% endif %}>{{ ev['event_name'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Branch</label>
+            <select class="form-select" name="branch">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b }}" {% if branch == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 form-check ms-2">
+            <input class="form-check-input" type="checkbox" name="only_flagged" value="1" id="onlyFlagged" {% if only_flagged %}checked{% endif %}>
+            <label class="form-check-label small" for="onlyFlagged">Flagged only</label>
+        </div>
+        <div class="col-12">
+            <button class="btn btn-success btn-sm"><i class="bi bi-search"></i> Filter</button>
+            <a href="{{ url_for('admin.attendance_list') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="glass-card p-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th><th>Branch/Section</th><th>CRN/URN</th><th>Phone</th>
+                    <th>Event</th><th>Mode</th><th>Location</th><th>Flags</th><th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row['student_name'] }}{% if row['is_nss_volunteer'] %} <i class="bi bi-star-fill text-warning" title="NSS Volunteer"></i>{% endif %}</td>
+                    <td>{{ row['branch'] or '-' }} / {{ row['section'] or '-' }}</td>
+                    <td>{{ row['crn'] or '-' }} / {{ row['urn'] or '-' }}</td>
+                    <td>{{ row['phone'] }}</td>
+                    <td>{{ row['event_name'] }}</td>
+                    <td><span class="badge bg-secondary">{{ row['attendance_mode'] }}</span></td>
+                    <td>
+                        {% if row['google_maps_link'] %}
+                        <a href="{{ row['google_maps_link'] }}" target="_blank" title="{{ row['location_address'] }}">
+                            <i class="bi bi-geo-alt-fill text-success"></i> Map
+                        </a>
+                        {% else %}
+                        <span class="text-muted">No location</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row['is_duplicate'] %}<span class="badge bg-danger">Duplicate</span>{% endif %}
+                        {% if row['is_proxy_suspected'] %}<span class="badge bg-warning text-dark">Proxy Risk</span>{% endif %}
+                        {% if row['location_status'] == 'suspicious' %}<span class="badge bg-info text-dark">Loc. Flag</span>{% endif %}
+                    </td>
+                    <td class="text-muted small">{{ row['created_at'] }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-center text-muted py-3">No matching records.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <nav class="mt-2">
+        <ul class="pagination pagination-sm justify-content-center">
+            {% for p in range(1, total_pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('admin.attendance_list', page=p, search=search, event_id=event_id, branch=branch, only_flagged=1 if only_flagged else None) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

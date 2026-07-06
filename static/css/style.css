@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --nss-primary: #1F4D36;
+    --nss-primary-dark: #123021;
+    --nss-primary-light: #2c6e4d;
+    --nss-accent: #ff9f1c;
+    --nss-bg: #f3f7f4;
+    --nss-card-bg: rgba(255, 255, 255, 0.8);
+    --nss-border: rgba(31, 77, 54, 0.1);
+    --nss-text: #2b3a32;
+    --nss-text-muted: #5e6f65;
+    --glass-blur: 16px;
+    --nss-gradient-primary: linear-gradient(135deg, #1F4D36 0%, #153525 100%);
+    --nss-gradient-accent: linear-gradient(135deg, #ff9f1c 0%, #e08300 100%);
+    --nss-gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(243, 248, 244, 0.8) 100%);
+}
+
+[data-bs-theme="dark"] {
+    --nss-bg: #090e0c;
+    --nss-card-bg: rgba(18, 26, 22, 0.7);
+    --nss-border: rgba(255, 255, 255, 0.08);
+    --nss-text: #e2ebd5;
+    --nss-text-muted: #8fa095;
+    --nss-gradient-primary: linear-gradient(135deg, #173d2b 0%, #0c1f15 100%);
+    --nss-gradient-card: linear-gradient(135deg, rgba(18, 26, 22, 0.85) 0%, rgba(10, 15, 12, 0.75) 100%);
+}
+
+body {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--nss-bg);
+    color: var(--nss-text);
+    transition: background 0.4s ease, color 0.4s ease;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+    background: var(--nss-gradient-card);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--nss-border);
+    border-radius: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(31, 77, 54, 0.1);
+}
+
+/* Navbar Modernization */
+.app-navbar {
+    background: var(--nss-gradient-primary);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 0.75rem 1.5rem;
+}
+
+.app-navbar .navbar-brand {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #ffffff !important;
+}
+
+.app-navbar .nav-link {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-weight: 500;
+    padding: 0.5rem 1rem !important;
+    border-radius: 0.5rem;
+    transition: all 0.25s ease;
+}
+
+.app-navbar .nav-link:hover, .app-navbar .nav-link.active {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Stats panel */
+.stat-card {
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    color: #fff;
+    background: var(--nss-gradient-primary);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 30px rgba(21, 53, 37, 0.2);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(21, 53, 37, 0.3);
+}
+
+.stat-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 70%);
+    transform: rotate(30deg);
+}
+
+.stat-card .stat-value {
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card .stat-label {
+    opacity: 0.8;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stat-card .stat-icon {
+    position: absolute;
+    bottom: 1rem;
+    right: 1.25rem;
+    font-size: 2.5rem;
+    opacity: 0.15;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.spin {
+    animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Risk Badges */
+.badge-risk {
+    font-weight: 700;
+    padding: 0.35em 0.65em;
+    border-radius: 0.35rem;
+}
+.badge-risk-high { background-color: rgba(220, 53, 69, 0.15); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
+.badge-risk-medium { background-color: rgba(253, 126, 20, 0.15); color: #fd7e14; border: 1px solid rgba(253, 126, 20, 0.2); }
+.badge-risk-low { background-color: rgba(25, 135, 84, 0.15); color: #198754; border: 1px solid rgba(25, 135, 84, 0.2); }
+
+/* Custom Forms */
+.form-control, .form-select {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--nss-border);
+    border-radius: 0.65rem;
+    padding: 0.6rem 1rem;
+    color: var(--nss-text);
+    transition: all 0.2s ease;
+}
+
+[data-bs-theme="dark"] .form-control, [data-bs-theme="dark"] .form-select {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-color: var(--nss-primary-light);
+    box-shadow: 0 0 0 0.25rem rgba(44, 110, 77, 0.15);
+    color: var(--nss-text);
+}
+
+[data-bs-theme="dark"] .form-control:focus, [data-bs-theme="dark"] .form-select:focus {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Beautiful Tables */
+.table {
+    color: var(--nss-text);
+}
+.table > :not(caption) > * > * {
+    background-color: transparent !important;
+    border-bottom-color: var(--nss-border);
+    padding: 0.85rem 1rem;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(31, 77, 54, 0.03) !important;
+    cursor: pointer;
+}
+[data-bs-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Leaflet Map Styling */
+#map {
+    border-radius: 1.25rem;
+    border: 1px solid var(--nss-border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom details styling */
+.location-cell {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-line;
+}

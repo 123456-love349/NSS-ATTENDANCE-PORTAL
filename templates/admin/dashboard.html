@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · NSS Attendance{% endblock %}
+{% block content %}
+<div class="container-fluid py-2 fade-in">
+    <!-- Header Block -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0 text-success-emphasis"><i class="bi bi-speedometer2"></i> Management Console</h2>
+            <p class="text-muted mb-0">Overview of student volunteer metrics, event records, and security compliance.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.events_list') }}" class="btn btn-success btn-sm"><i class="bi bi-calendar-plus"></i> Manage Events</a>
+            <a href="{{ url_for('admin.reports_view') }}" class="btn btn-outline-success btn-sm"><i class="bi bi-download"></i> Generate Reports</a>
+        </div>
+    </div>
+
+    <!-- Stats Cards Panel -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #0d6efd, #0a4ebd);">
+                <div class="stat-value">{{ total_students }}</div>
+                <div class="stat-label">Total Students</div>
+                <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #198754, #115f3a);">
+                <div class="stat-value">{{ today_attendance }}</div>
+                <div class="stat-label">Today's Logs</div>
+                <div class="stat-icon"><i class="bi bi-calendar2-check-fill"></i></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #ff9f1c, #d17a00);">
+                <div class="stat-value">{{ total_events }}</div>
+                <div class="stat-label">Total Events</div>
+                <div class="stat-icon"><i class="bi bi-calendar-event-fill"></i></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #dc3545, #a71d2a);">
+                <div class="stat-value">{{ total_duplicates }}</div>
+                <div class="stat-label">Duplicates</div>
+                <div class="stat-icon"><i class="bi bi-copy"></i></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #fd7e14, #c85a07);">
+                <div class="stat-value">{{ total_proxy }}</div>
+                <div class="stat-label">Proxy Risk</div>
+                <div class="stat-icon"><i class="bi bi-shield-fill-exclamation"></i></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #6c757d, #495057);">
+                <div class="stat-value">{{ total_ocr_uploads }}</div>
+                <div class="stat-label">OCR Jobs</div>
+                <div class="stat-icon"><i class="bi bi-file-earmark-arrow-up-fill"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visual Analytics Section -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill text-success"></i> Attendance Trends</h5>
+                <div style="position: relative; height: 320px; width: 100%;">
+                    <canvas id="eventChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-success"></i> Branch Distribution</h5>
+                <div style="position: relative; height: 320px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="branchChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Alerts and Recent Activity -->
+    <div class="row g-4">
+        <!-- AI Alerts Panel -->
+        <div class="col-lg-4">
+            <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-octagon-fill"></i> AI Risk Alerts</h5>
+                <div class="d-flex flex-column gap-2" style="max-height: 400px; overflow-y: auto;">
+                    {% for alert in active_alerts %}
+                    <div class="alert alert-{{ 'danger' if alert['severity']=='high' else 'warning' }} py-2 px-3 small mb-0 border-0 shadow-sm d-flex gap-2 align-items-start">
+                        <i class="bi bi-shield-fill-x fs-5"></i>
+                        <div>
+                            <div class="fw-bold">{{ alert['alert_type']|upper }}</div>
+                            <div>{{ alert['message'] }}</div>
+                            <small class="text-muted" style="font-size: 0.75rem;">{{ alert['created_at'] }}</small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-check-circle-fill text-success display-6 mb-2"></i>
+                        <div>All systems normal. No active anomalies.</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Logs -->
+        <div class="col-lg-8">
+            <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-clock-history text-success"></i> Recent Check-ins</h5>
+                    <a href="{{ url_for('admin.attendance_list') }}" class="btn btn-sm btn-outline-success">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="table-light">
+                                <th>Name</th>
+                                <th>Event</th>
+                                <th>Mode</th>
+                                <th>Location Status</th>
+                                <th>Risk Score</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in recent_attendance %}
+                            <tr>
+                                <td class="fw-semibold">
+                                    {{ row['student_name'] }}
+                                    {% if row['is_nss_volunteer'] %}
+                                    <i class="bi bi-star-fill text-warning ms-1" title="NSS Volunteer"></i>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row['event_name'] }}</td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                        {{ row['attendance_mode']|upper }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if row['location_status'] == 'suspicious' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Suspicious</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Secure</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row['risk_score'] >= 50 %}
+                                        <span class="badge badge-risk badge-risk-high">{{ row['risk_score'] }}</span>
+                                    {% elif row['risk_score'] >= 20 %}
+                                        <span class="badge badge-risk badge-risk-medium">{{ row['risk_score'] }}</span>
+                                    {% else %}
+                                        <span class="badge badge-risk badge-risk-low">{{ row['risk_score'] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">{{ row['created_at'] }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">No attendance logs available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // ---- Event Attendance Bar Chart ----
+    const ctxEvent = document.getElementById('eventChart').getContext('2d');
+    new Chart(ctxEvent, {
+        type: 'bar',
+        data: {
+            labels: {{ event_labels|tojson }},
+            datasets: [{
+                label: 'Check-ins',
+                data: {{ event_counts|tojson }},
+                backgroundColor: 'rgba(31, 77, 54, 0.75)',
+                borderColor: 'rgba(31, 77, 54, 1)',
+                borderWidth: 1.5,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    // ---- Branch Distribution Pie/Donut Chart ----
+    const ctxBranch = document.getElementById('branchChart').getContext('2d');
+    new Chart(ctxBranch, {
+        type: 'doughnut',
+        data: {
+            labels: {{ branch_labels|tojson }},
+            datasets: [{
+                data: {{ branch_counts|tojson }},
+                backgroundColor: [
+                    '#1F4D36', '#2a6b4c', '#3b8f67', '#56b488', 
+                    '#77cfa4', '#ff9f1c', '#fd7e14', '#0d6efd', '#6c757d'
+                ],
+                borderWidth: 1.5,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 12, font: { family: 'Outfit' } }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Reports & Exports · NSS Attendance{% endblock %}
+{% block content %}
+<div class="container-fluid py-2 fade-in">
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <h3 class="fw-bold mb-1 text-success-emphasis"><i class="bi bi-graph-up-arrow"></i> Reports & Downloads</h3>
+            <p class="text-muted">Generate official, stylized spreadsheets, print-ready PDF certificates, or raw CSV reports of student attendance check-ins.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="glass-card p-5">
+                <h5 class="fw-bold mb-4 text-success-emphasis"><i class="bi bi-funnel-fill text-success"></i> Customize Report Filters</h5>
+                
+                <form id="reportForm" action="{{ url_for('admin.reports_download') }}" method="get">
+                    <!-- Filters Grid -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Event Name</label>
+                            <select class="form-select" name="event_id">
+                                <option value="" selected>-- All Events --</option>
+                                {% for ev in events %}
+                                <option value="{{ ev['id'] }}">{{ ev['event_name'] }} ({{ ev['event_date'] }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Student Department / Branch</label>
+                            <select class="form-select" name="branch">
+                                <option value="" selected>-- All Branches --</option>
+                                {% for b in branches %}
+                                <option value="{{ b }}">{{ b }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Start Date</label>
+                            <input class="form-control" type="date" name="start_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">End Date</label>
+                            <input class="form-control" type="date" name="end_date">
+                        </div>
+
+                        <!-- Checkbox options -->
+                        <div class="col-md-6 mt-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="only_volunteers" value="1" id="onlyVols">
+                                <label class="form-check-label small fw-semibold text-muted" for="onlyVols">
+                                    NSS Registered Volunteers Only
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mt-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="only_flagged" value="1" id="onlyFlag">
+                                <label class="form-check-label small fw-semibold text-muted" for="onlyFlag">
+                                    Flagged Records Only (AI Alerts, Duplicates)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden format field -->
+                    <input type="hidden" name="format" id="reportFormat" value="excel">
+
+                    <hr class="my-4" style="opacity: 0.1;">
+
+                    <!-- Action Buttons -->
+                    <div class="text-center">
+                        <div class="small text-muted mb-3 fw-semibold">Select Report Output Format</div>
+                        <div class="d-flex flex-column flex-md-row gap-3 justify-content-center">
+                            <button type="button" class="btn btn-success px-4 py-2 flex-fill" onclick="downloadReport('excel')">
+                                <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
+                            </button>
+                            <button type="button" class="btn btn-danger px-4 py-2 flex-fill" onclick="downloadReport('pdf')">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> Download PDF
+                            </button>
+                            <button type="button" class="btn btn-secondary px-4 py-2 flex-fill" onclick="downloadReport('csv')">
+                                <i class="bi bi-filetype-csv"></i> Download CSV
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function downloadReport(format) {
+    document.getElementById('reportFormat').value = format;
+    document.getElementById('reportForm').submit();
+}
+</script>
+{% endblock %}
